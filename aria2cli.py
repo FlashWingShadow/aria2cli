@@ -2,6 +2,7 @@
 
 import requests
 import fire
+import re
 
 # --- config ---
 token = 'your_token'
@@ -21,6 +22,35 @@ def size_str(size):
 def progressbar(progress, bar_length):
     completed_length = int(bar_length*progress)
     return '[{}{}]'.format('#' * completed_length, ' ' * (bar_length - completed_length))
+
+def get_wide_char_num(string):
+    # zh: \u4e00-\u9fa5
+    # jp: \u0800-\u4e00
+    # ko: \uac00-\ud7ff
+    l = re.findall('[\u4e00-\u9fa5, \u0800-\u4e00, \uac00-\ud7ff]', string)
+    return len(l)
+
+def cut_v_str(string, length):
+    wide_char_num = get_wide_char_num(string)
+    v_len = len(string) + wide_char_num
+    if v_len > length:
+        l = 0
+        for i, c in enumerate(string):
+            l += 2 if '\u0800'<c<'\u9fa5' or '\uac00'<c<'\ud7ff' else 1
+            if l > length:
+                string = string[:i]
+    return string
+
+def v_str(string, length, align='<'):
+    assert align in ['<', '>', '^']
+    string = cut_v_str(string, length)
+    extra = length - (len(string) + get_wide_char_num(string))
+    if align == '<':
+        return string + ' ' * extra
+    elif align == '>':
+        return ' ' * extra + string
+    elif align == '^':
+        return (extra // 2) * ' ' + string + (extra - extra // 2) * ' '
 
 class Aria2Rpc():
     def __init__(self, host, port, token):
@@ -114,13 +144,15 @@ def item_default_format(item):
     item = convert_item(item)
     procentage = '{:.2f} %'.format(item['progress'] * 100)
     bar = progressbar(item['progress'], 10)
-    return f"{item['title'][0:40]:<40}  {item['size']:>10}  {item['fileNum']}files  {item['speed']:>11} {bar} {procentage:>8}"
+    title = v_str(item['title'], 40)
+    return f"{title}  {item['size']:>10}  {item['fileNum']}files  {item['speed']:>11} {bar} {procentage:>8}"
 
 def item_detail_format(item):
     item = convert_item(item)
     procentage = '{:.2f} %'.format(item['progress'] * 100)
     bar = progressbar(item['progress'], 10)
-    return f"{item['gid']}  {item['title'][0:40]:<40}  {item['size']:>10}  {item['fileNum']}files  {item['speed']:>11} {bar} {procentage:>8}"
+    title = v_str(item['title'], 40)
+    return f"{item['gid']}  {title}  {item['size']:>10}  {item['fileNum']}files  {item['speed']:>11} {bar} {procentage:>8}"
 
 def item_info_format(item):
     bittorrent = item['bittorrent']
@@ -131,8 +163,8 @@ def item_info_format(item):
     def file_format(file):
         size = size_str(int(file['length']))
         procentage = '{:.2f} %'.format(int(file['completedLength'])*100/int(file['length']))
-        name = file['path'].replace(dir_path, '')
-        return f'{size:>7}  {procentage:>8}  {name}'
+        name = v_str(file['path'].replace(dir_path, ''), 60)
+        return f'{name}  {size:>9}  {procentage:>8}'
     files_str = '\n'.join(map(lambda file: f'    {file_format(file)}', item['files']))
     return (f'Name    : {name}\n'
             f'InfoHash: {infoHash}\n'
