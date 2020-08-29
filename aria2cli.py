@@ -57,7 +57,7 @@ class Aria2Rpc():
         self.host = host
         self.port = port
         self.token = token
-        self.itemList = ['gid', 'bittorrent', 'totalLength', 'completedLength',  'downloadSpeed', 'files', 'infoHash']
+        self.itemList = ['gid', 'bittorrent', 'totalLength', 'completedLength',  'downloadSpeed', 'files', 'infoHash', 'status']
         #  options = ['gid','totalLength','completedLength','uploadSpeed','downloadSpeed','connections','numSeeders','seeder','status','errorCode','verifiedLength','verifyIntegrityPending','files','bittorrent','infoHash']
 
     def aria2_request(self, jsonrpc):
@@ -128,16 +128,21 @@ class Aria2Rpc():
 aria2rpc = Aria2Rpc(host, port, token)
 
 def convert_item(item):
-    bittorrent = item['bittorrent']
+    bittorrent = item.get('bittorrent')
+    if bittorrent:
+        title = bittorrent['info']['name'] if bittorrent.get('info') else item['infoHash']
+    else:
+        title = item['files'][0]['path'].split('/')[-1]
     totalLength = int(item['totalLength'])
     completedLength = int(item['completedLength'])
     return {
             'gid': item['gid'],
-            'title': bittorrent['info']['name'] if bittorrent.get('info') else item['infoHash'],
+            'title': title,
             'fileNum': len(item['files']),
             'speed': size_str(int(item['downloadSpeed'])) + '/s',
             'size': size_str(totalLength),
-            'progress': completedLength / totalLength if totalLength else 0 
+            'progress': completedLength / totalLength if totalLength else 0 ,
+            'status': item['status']
         }
 
 def item_default_format(item):
@@ -152,7 +157,7 @@ def item_detail_format(item):
     procentage = '{:.2f} %'.format(item['progress'] * 100)
     bar = progressbar(item['progress'], 10)
     title = v_str(item['title'], 40)
-    return f"{item['gid']}  {title}  {item['size']:>10}  {item['fileNum']}files  {item['speed']:>11} {bar} {procentage:>8}"
+    return f"{item['gid']}  {title}  {item['size']:>10}  {item['fileNum']}files  {item['speed']:>11} {bar} {procentage:>8} {item['status']}"
 
 def item_info_format(item):
     bittorrent = item['bittorrent']
