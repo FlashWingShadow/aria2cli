@@ -21,12 +21,9 @@ def size_str(size):
 
 def progressbar(progress, bar_length):
     completed_length = int(bar_length*progress)
-    return '[{}{}]'.format('#' * completed_length, ' ' * (bar_length - completed_length))
+    return '[{}{}]'.format('#' * completed_length, '-' * (bar_length - completed_length))
 
 def get_wide_char_num(string):
-    # zh: \u4e00-\u9fa5
-    # jp: \u0800-\u4e00
-    # ko: \uac00-\ud7ff
     l = re.findall('[\u4e00-\u9fa5, \u0800-\u4e00, \uac00-\ud7ff]', string)
     return len(l)
 
@@ -39,12 +36,16 @@ def cut_v_str(string, length):
             l += 2 if '\u0800'<c<'\u9fa5' or '\uac00'<c<'\ud7ff' else 1
             if l > length:
                 string = string[:i]
-    return string
+                if l - length == 1:
+                    string += ' '
+                    v_len += 1
+                break;
+    return string, v_len
 
 def v_str(string, length, align='<'):
     assert align in ['<', '>', '^']
-    string = cut_v_str(string, length)
-    extra = length - (len(string) + get_wide_char_num(string))
+    string, v_len = cut_v_str(string, length)
+    extra = length - v_len if length >= v_len else 0
     if align == '<':
         return string + ' ' * extra
     elif align == '>':
