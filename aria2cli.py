@@ -17,7 +17,7 @@ def size_str(size):
         return '{:.2f} MB'.format(size/1_000_000)
     if size >= 1_000:
         return '{:.2f} KB'.format(size/1_000)
-    return '{} B'.format(size)
+    return '{}  B'.format(size)
 
 def progressbar(progress, bar_length):
     completed_length = int(bar_length*progress)
@@ -146,12 +146,21 @@ def convert_item(item):
             'status': item['status']
         }
 
+status_symbol = {
+    'active': '>',
+    'complete': 'O',
+    'paused': '|',
+    'error': 'X'
+}
+
 def item_default_format(item):
     item = convert_item(item)
     procentage = '{:.2f} %'.format(item['progress'] * 100)
     bar = progressbar(item['progress'], 10)
     title = v_str(item['title'], 40)
-    return f"{title}  {item['size']:>10}  {item['fileNum']}files  {item['speed']:>11} {bar} {procentage:>8}"
+    status = status_symbol[item['status']]
+    return f"{title}  {item['size']:>10}  {item['fileNum']}  [{status}] {item['speed']:>11} {bar} {procentage:>8}"
+    # return f"{title}  {item['size']:>10}  {item['fileNum']}  {item['status']} {item['speed']:>11} {bar} {procentage:>8}"
 
 def item_detail_format(item):
     item = convert_item(item)
@@ -159,6 +168,8 @@ def item_detail_format(item):
     bar = progressbar(item['progress'], 10)
     title = v_str(item['title'], 40)
     return f"{item['gid']}  {title}  {item['size']:>10}  {item['fileNum']}files  {item['speed']:>11} {bar} {procentage:>8} {item['status']}"
+
+item_default_format_header = 'Name                                            Size  F  Status   Speeds              Progress'
 
 def item_info_format(item):
     bittorrent = item['bittorrent']
@@ -189,18 +200,28 @@ class ListCommand():
 
     def all(self, format='default'):
         'list all task'
+        print(item_default_format_header)
         self.active()
+        self.waiting()
         self.stopped()
 
     def active(self):
         'list active task'
         items_show = '\n'.join([self.item_format(i) for i in aria2rpc.tellActive()])
-        print(items_show)
+        if items_show:
+            print(items_show)
+
+    def waiting(self):
+        'list waiting task'
+        items_show = '\n'.join([self.item_format(i) for i in aria2rpc.tellWaiting()])
+        if items_show:
+            print(items_show)
 
     def stopped(self):
         'list stopped task'
         items_show = '\n'.join([self.item_format(i) for i in aria2rpc.tellStopped()])
-        print(items_show)
+        if items_show:
+            print(items_show)
 
     def __call__(self):
         self.all()
