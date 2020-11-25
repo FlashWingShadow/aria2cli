@@ -24,8 +24,11 @@ def progressbar(progress, bar_length):
     return '[{}{}]'.format('#' * completed_length, '-' * (bar_length - completed_length))
 
 def get_wide_char_num(string):
-    l = re.findall('[\u4e00-\u9fa5, \u0800-\u4e00, \uac00-\ud7ff]', string)
+    l = re.findall('[\u4e00-\u9fa5,\u0800-\u4e00,\uac00-\ud7ff]', string)
     return len(l)
+
+def is_wide_char(c):
+    return '\u0800'<c<'\u9fa5' or '\uac00'<c<'\ud7ff'
 
 def cut_v_str(string, length):
     wide_char_num = get_wide_char_num(string)
@@ -33,10 +36,10 @@ def cut_v_str(string, length):
     if v_len > length:
         l = 0
         for i, c in enumerate(string):
-            l += 2 if '\u0800'<c<'\u9fa5' or '\uac00'<c<'\ud7ff' else 1
+            l += 2 if is_wide_char(c) else 1
             if l > length:
                 string = string[:i]
-                if l - length == 1:
+                if is_wide_char(c) and l - length == 1:
                     string += ' '
                     v_len += 1
                 break;
@@ -85,6 +88,12 @@ class Aria2Rpc():
     def addUri(self, url):
         argList = [[url], {}]
         jsonrpc = self.get_jsonrpc('addUri', argList)
+        return self.aria2_request(jsonrpc)['result']
+
+    def addTorrent(self, torrent: bytes):
+        import base64
+        argList = [base64.b64encode(torrent), [], {}]
+        jsonrpc = self.get_jsonrpc('addTorrent', argList)
         return self.aria2_request(jsonrpc)['result']
 
     def tellActive(self):
@@ -160,7 +169,6 @@ def item_default_format(item):
     title = v_str(item['title'], 40)
     status = status_symbol[item['status']]
     return f"{title}  {item['size']:>10}  {item['fileNum']}  [{status}] {item['speed']:>11} {bar} {procentage:>8}"
-    # return f"{title}  {item['size']:>10}  {item['fileNum']}  {item['status']} {item['speed']:>11} {bar} {procentage:>8}"
 
 def item_detail_format(item):
     item = convert_item(item)
@@ -236,6 +244,19 @@ class Command():
         for url in urls:
             aria2rpc.addUri(url)
             print(f'INFO: new task for {url}')
+
+    def bt(self, *torrent_paths):
+        'new task for torrent files'
+        import os
+        for torrent_path in torrent_paths:
+            torrent_realpath = os.path.realpath(torrent_path)
+            if not os.path.isfile(torrent_realpath):
+                print(f'ERROR: {torrent_path} is not exist')
+                continue
+            with open(torrent_realpath, 'rb') as f:
+                torrent = f.read()
+            aria2rpc.addTorrent(torrent)
+            print(f'INFO: new task for {torrent_path}')
 
     def purge(self):
         'purge download result'
