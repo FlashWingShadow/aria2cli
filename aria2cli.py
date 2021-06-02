@@ -24,11 +24,11 @@ def progressbar(progress, bar_length):
     return '[{}{}]'.format('#' * completed_length, '-' * (bar_length - completed_length))
 
 def get_wide_char_num(string):
-    l = re.findall('[\u4e00-\u9fa5,\u0800-\u4e00,\uac00-\ud7ff]', string)
+    l = re.findall('[\u0800-\u4e00,\u4e00-\u9fa5,\uac00-\ud7ff]', string)
     return len(l)
 
 def is_wide_char(c):
-    return '\u0800'<c<'\u9fa5' or '\uac00'<c<'\ud7ff'
+    return '\u0800'<c<'\u9fa5' or '\uac00'<c<'\ud7ff' or '\uff00'<c<'\uffff'
 
 def cut_v_str(string, length):
     wide_char_num = get_wide_char_num(string)
@@ -159,7 +159,8 @@ status_symbol = {
     'active': '>',
     'complete': 'O',
     'paused': '|',
-    'error': 'X'
+    'error': 'X',
+    'removed': 'R'
 }
 
 def item_default_format(item):
